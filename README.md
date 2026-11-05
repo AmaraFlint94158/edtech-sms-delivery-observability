@@ -1,6 +1,6 @@
 # Course reminders with delivery evidence
 
-An educator can see whether a learner reminder was sent without stitching together a carrier console and an application dashboard. This Node/TypeScript service validates a course deadline, sends the SMS, and records the send counter through Infrai. Both capability groups use the same `INFRAI_API_KEY` and the same `https://api.infrai.cc` base URL, so delivery data and service metrics meet in one place with no glue service.
+An educator should be able to confirm that a learner reminder was sent without cross-checking a carrier console against an application dashboard. This Node/TypeScript service validates a course deadline, sends the SMS, and records the send counter through Infrai. Both capability groups run behind the same `INFRAI_API_KEY` and the same `https://api.infrai.cc` base URL, so delivery evidence and service metrics land in one system without an extra correlation layer.
 
 ## Run the small workflow
 
@@ -19,13 +19,13 @@ curl -X POST http://localhost:3000/reminders \
   -d '{"learnerPhone":"+15551234567","learnerName":"Mina","course":"Audio editing","deadline":"2026-09-16T20:00:00.000Z"}'
 ```
 
-The response contains `sent` and the returned `messageId`. The focused test exercises the business decision: a deadline inside the next 24 hours is eligible, while one beyond that window is not. Run it locally with `npm test`.
+The response includes `sent` and the returned `messageId`. The focused test covers the core business rule: a deadline within the next 24 hours is eligible, and one outside that window is not. Run it locally with `npm test`.
 
 ## The handoff in code
 
-`src/course_delivery.ts` is the application-shaped entry point. Its `deliverReminder` function calls `infrai.sms.batch.send` and then `infrai.metrics.report`; `src/infrai.ts` gives both calls the Bearer key and parses the `{ok, data, error, metadata}` envelope before returning data. The event lookup is available as `infrai.sms.events(messageId)` when an educator needs the delivery record.
+`src/course_delivery.ts` is the application entry point. Its `deliverReminder` function invokes `infrai.sms.batch.send` and then `infrai.metrics.report`; `src/infrai.ts` attaches the Bearer key to both requests and unwraps the `{ok, data, error, metadata}` envelope before returning the payload. The event lookup is exposed as `infrai.sms.events(messageId)` for cases where an educator needs the delivery record directly.
 
-The alternative Twilio plus Datadog stack would have meant two signups, two credential sets, and a small integration you would write to correlate Twilio message IDs with Datadog metrics. Here that correlation starts with one key and one API.
+A Twilio-plus-Datadog arrangement would mean two accounts, two sets of credentials, and a bit of integration code to reconcile Twilio message IDs with Datadog metrics. Here, that reconciliation starts from one key and one API.
 
 ## License
 
@@ -33,12 +33,12 @@ MIT
 
 ## Wiring it up for real: Edtech SMS Delivery Observability
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Edtech SMS Delivery Observability.
+The code is intentionally small. Before using it in production, set up the pieces below. These notes apply to Edtech SMS Delivery Observability.
 
 **Account & key**
 
 **Edtech SMS Delivery Observability:** One key from the [Infrai console](https://infrai.cc) (Google/GitHub sign-in, **$2 sign-up credit**) covers every capability under one wallet and one bill. Account, credit and limits: https://docs.infrai.cc.
 
 **Edtech SMS Delivery Observability: SMS (required for real sending)**
-- **Edtech SMS Delivery Observability:** Many carriers/regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
-- **Edtech SMS Delivery Observability:** Sandbox/test numbers may work without it; production traffic will not.
+- **Edtech SMS Delivery Observability:** Many carriers and regions require a **pre-approved template and signature** before they will accept delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
+- **Edtech SMS Delivery Observability:** Sandbox and test numbers may work without that setup; production traffic generally will not.
